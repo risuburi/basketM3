@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>バスケットボール スタッツ記録アプリ Pro iPad Edition</title>
+    <style>
+        /* 全体のデザイン（iPad・iOS最適化） */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: #ecf0f1;
+            margin: 0;
+            padding: 8px;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+        h1 { text-align: center; color: #f39c12; margin: 2px 0; font-size: 1.4em; }
+        
+        /* タブメニュー */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 4px;
+            margin-bottom: 8px;
+            border-bottom: 2px solid #0f3460;
+        }
+        .tab-btn {
+            background-color: transparent;
+            color: #bdc3c7;
+            border: none;
+            padding: 8px 16px;
+            font-size: 0.95em;
+            cursor: pointer;
+            font-weight: bold;
+            border-bottom: 3px solid transparent;
+        }
+        .tab-btn.active {
+            color: #f1c40f;
+            border-bottom: 3px solid #f1c40f;
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ロックコントロールバー */
+        .lock-bar {
+            text-align: center;
+            margin-bottom: 8px;
+            background: #16213e;
+            padding: 4px;
+            border-radius: 6px;
+            border: 1px dashed #f1c40f;
+            font-size: 0.85em;
+        }
+
+        /* スコアボード・チームファウル・タイマー */
+        .top-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #16213e;
+            padding: 6px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border: 2px solid #0f3460;
+        }
+        .score-box { text-align: center; width: 30%; min-width: 140px; }
+        
+        .team-name-input {
+            font-size: 1.1em;
+            font-weight: bold;
+            color: #f1c40f;
+            background: transparent;
+            border: 1px dashed #555;
+            border-radius: 4px;
+            text-align: center;
+            width: 92%;
+            padding: 2px;
+            box-sizing: border-box;
+        }
+        .team-name-input:focus {
+            border-color: #f39c12;
+            background: #0f3460;
+            outline: none;
+        }
+        .team-name-input.locked-input {
+            border: none !important;
+            background: transparent !important;
+            pointer-events: none;
+        }
+
+        .score { font-size: 2.5em; color: #f1c40f; font-weight: bold; margin: 0; line-height: 1; }
+        
+        .score-adjust-btn {
+            background-color: #34495e; color: #ecf0f1; border: 1px solid #555;
+            padding: 2px 8px; font-size: 0.8em; font-weight: bold; border-radius: 4px; cursor: pointer;
+        }
+
+        .team-undo-btn {
+            background-color: #c0392b; color: white; border: none; padding: 3px 6px;
+            border-radius: 4px; font-size: 0.75em; font-weight: bold; cursor: pointer;
+            margin-bottom: 4px; width: 100%; display: inline-block;
+        }
+
+        .timeout-container {
+            display: flex; justify-content: center; align-items: center; gap: 4px;
+            background-color: #0f3460; padding: 2px 6px; border-radius: 4px; font-size: 0.8em;
+        }
+        .timeout-dots { color: #f1c40f; font-size: 1em; letter-spacing: 1px; font-family: monospace; }
+        .timeout-btn {
+            background-color: #e67e22; color: white; border: none; padding: 1px 4px;
+            border-radius: 3px; cursor: pointer; font-size: 0.75em; font-weight: bold;
+        }
+        
+        .timeout-history { font-size: 0.7em; color: #a0aec0; min-height: 1.1em; text-align: center; margin-top: 2px; }
+
+        .team-status { display: flex; justify-content: center; font-size: 0.8em; background: #0f3460; padding: 3px; border-radius: 4px; }
+        .foul-count.bonus { color: #e74c3c; font-weight: bold; animation: blink 1s infinite; }
+        @keyframes blink { 50% { opacity: 0.4; } }
+
+        /* タイマー */
+        .timer-section { text-align: center; width: 35%; }
+        .timer-display {
+            font-size: 2.2em; font-family: monospace; font-weight: bold;
+            color: #e74c3c; background: #000; padding: 2px 10px;
+            border-radius: 6px; border: 1px solid #333; letter-spacing: 1px; display: inline-block;
+        }
+        .btn { background-color: #34495e; color: white; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; margin: 2px; font-size: 0.8em; }
+        .btn-start { background-color: #27ae60; }
+        .btn-stop { background-color: #c0392b; }
+
+        /* メインレイアウト */
+        .main-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* 左右の選手リスト */
+        .team-section {
+            flex: 1;
+            min-width: 230px;
+            background: #0f3460;
+            padding: 8px;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+        .team-section h2 { 
+            display: flex; justify-content: space-between; align-items: center;
+            margin: 0 0 5px 0; color: #ecf0f1; font-size: 0.95em; 
+        }
+        
+        .table-wrapper {
+            max-height: 420px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            border-radius: 4px;
+        }
+        table { width: 100%; border-collapse: collapse; text-align: center; background: #1a1a2e; }
+        th, td { border-bottom: 1px solid #333; padding: 5px 2px; font-size: 0.8em; }
+        th { background-color: #16213e; position: sticky; top: 0; z-index: 10; }
+        
+        input[type="text"] {
+            width: 85%; padding: 2px; border: 1px solid #555; border-radius: 3px;
+            background: #222; color: white; text-align: center; font-size: 0.85em;
+        }
+        .input-name { text-align: left; }
+        input[type="text"].locked-input { background: transparent !important; border: none !important; color: #ecf0f1 !important; pointer-events: none; }
+        
+        tr.player-row { cursor: pointer; }
+        tr.player-row.selected-home { background-color: #2980b9 !important; }
+        tr.player-row.selected-away { background-color: #c0392b !important; }
+
+        /* 中央エリア */
+        .center-section {
+            flex: 1.4;
+            min-width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+        .court-container { background: #0f3460; padding: 6px; border-radius: 8px; position: relative; }
+        .svg-court { width: 100%; background-color: #dcb381; border: 1px solid white; border-radius: 4px; cursor: crosshair; }
+        
+        /* アクションボタン */
+        .action-panel { background: #16213e; padding: 8px; border-radius: 8px; text-align: center; border: 1px solid #34495e; }
+        .action-title { font-size: 0.9em; color: #f1c40f; margin-bottom: 5px; font-weight: bold; min-height: 1.1em; }
+        .btn-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+        
+        .action-btn { color: white; border: none; padding: 8px 2px; border-radius: 4px; cursor: pointer; font-size: 0.8em; font-weight: bold; }
+        .action-btn.pts-make { background-color: #2ecc71; color: #1a1a2e; }
+        .action-btn.pts-miss { background-color: #95a5a6; color: #1a1a2e; }
+        .action-btn.reb { background-color: #2980b9; }
+        .action-btn.ast { background-color: #8e44ad; }
+        .action-btn.to  { background-color: #d35400; }
+        .action-btn.cut { background-color: #16a085; }
+        .action-btn.scr { background-color: #f39c12; }
+        .action-btn.fls-p1 { background-color: #e74c3c; }
+        .action-btn.fls-p2 { background-color: #c0392b; }
+        .action-btn.fls-p3 { background-color: #922b21; }
+        .action-btn.fls-t  { background-color: #e67e22; }
+        .action-btn.fls-u  { background-color: #9b59b6; }
+
+        /* リアルタイム試合ログ */
+        .log-panel {
+            background: #121212; padding: 8px; border-radius: 6px; border: 1px solid #2c2c2e;
+            max-height: 110px; overflow-y: auto; font-size: 0.85em; color: #ffffff;
+        }
+        .log-item { margin: 3px 0; border-bottom: 1px solid #1c1c1e; color: #ffffff; display: flex; align-items: first baseline; line-height: 1.4; }
+        .log-time { color: #8e8e93; font-family: monospace; margin-right: 8px; flex-shrink: 0; }
+
+        /* モーダルウィンドウ（プリセット選択・選手選択用） */
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.75); z-index: 1000; justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #16213e; width: 90%; max-width: 550px; border-radius: 10px;
+            padding: 15px; border: 2px solid #0f3460; box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            max-height: 85vh; display: flex; flex-direction: column;
+        }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid #0f3460; padding-bottom: 8px; }
+        .modal-header h3 { margin: 0; color: #f1c40f; font-size: 1.1em; }
+        .close-btn { background: #c0392b; color: white; border: none; border-radius: 4px; padding: 4px 10px; font-weight: bold; cursor: pointer; }
+        .preset-select { width: 100%; padding: 8px; border-radius: 4px; background: #0f3460; color: white; border: 1px solid #555; font-size: 1em; margin-bottom: 10px; }
+        .preset-player-list { flex: 1; overflow-y: auto; border: 1px solid #333; background: #1a1a2e; border-radius: 4px; margin-bottom: 10px; padding: 5px; }
+        .preset-player-item { display: flex; align-items: center; padding: 6px; border-bottom: 1px solid #333; cursor: pointer; }
+        .preset-player-item:hover { background: #0f3460; }
+        .preset-player-item input[type="checkbox"] { transform: scale(1.4); margin-right: 12px; cursor: pointer; }
+        .preset-actions { display: flex; justify-content: space-between; gap: 8px; }
+
+        /* 選手登録・管理タブ専用デザイン */
+        .management-container { display: flex; flex-wrap: wrap; gap: 15px; justify-content: center; margin-top: 10px; }
+        .management-box { flex: 1; min-width: 300px; background: #0f3460; padding: 12px; border-radius: 8px; border: 1px solid #16213e; }
+        .management-box h3 { color: #f1c40f; margin-top: 0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #16213e; padding-bottom: 8px; }
+        .add-player-btn { background-color: #27ae60; color: white; border: none; padding: 6px 14px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.9em; transition: background 0.2s; }
+        .add-player-btn:active { background-color: #1e8449; }
+        .delete-player-btn { background-color: #c0392b; color: white; border: none; padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-weight: bold; }
+
+        /* 集計データ画面・スコアシート */
+        .stats-table-wrapper { max-height: 450px; overflow-y: auto; border: 1px solid #333; border-radius: 4px; margin-top: 10px; }
+        .stats-table { width: 100%; font-size: 0.8em; border-collapse: collapse; text-align: center; }
+        .stats-table th { background-color: #2980b9; color: white; padding: 6px; position: sticky; top: 0; z-index: 10; }
+        .stats-table td { padding: 6px; background-color: #16213e; border-bottom: 1px solid #333; }
+        .excel-copy-btn { background-color: #27ae60; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.85em; font-weight: bold; cursor: pointer; float: right; margin-bottom: 5px; }
+        .scoresheet-container { background-color: #faf6eb; color: #2c3e50; border: 2px solid #7f8c8d; border-radius: 6px; padding: 10px; margin-bottom: 15px; max-width: 100%; overflow-x: auto; }
+        .scoresheet-title { font-size: 0.95em; font-weight: bold; color: #2c3e50; text-align: center; margin: 0 0 10px 0; border-bottom: 1px solid #2c3e50; padding-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .scoresheet-columns { display: flex; gap: 10px; padding-bottom: 5px; }
+        .scoresheet-column-band { flex: 1; min-width: 160px; max-width: 220px; background-color: #ffffff; border: 1px solid #2c3e50; }
+        .scoresheet-table { width: 100%; border-collapse: collapse; font-family: 'Courier New', monospace; font-weight: bold; font-size: 0.85em; color: #2c3e50; }
+        .scoresheet-table th { background-color: #f1f2f6; color: #2c3e50; border: 1px solid #2c3e50; padding: 2px; font-size: 0.8em; }
+        .scoresheet-table td { border: 1px solid #b2bec3; padding: 1px 0; text-align: center; height: 20px; line-height: 20px; position: relative; }
+        .col-pno { width: 35%; cursor: help; }
+        .col-score { width: 15%; background-color: #fcfcfc; color: #bdc3c7; }
+        .score-slash-red { background: linear-gradient(45deg, transparent 45%, #e74c3c 46%, #e74c3c 54%, transparent 55%); color: #e74c3c !important; }
+        .score-slash-blue { background: linear-gradient(45deg, transparent 45%, #1e3799 46%, #1e3799 54%, transparent 55%); color: #1e3799 !important; }
+        .score-dot-red::after { content: "●"; color: #e74c3c; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+        .score-dot-blue::after { content: "●"; color: #1e3799; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+        .player-circle-red { border: 1px solid #e74c3c; border-radius: 50%; display: inline-block; width: 16px; height: 16px; line-height: 15px; text-align: center; color: #e74c3c; }
+        .player-circle-blue { border: 1px solid #1e3799; border-radius: 50%; display: inline-block; width: 16px; height: 16px; line-height: 15px; text-align: center; color: #1e3799; }
+        .score-circle-red { border: 1.5px solid #e74c3c; border-radius: 50%; display: inline-block; width: 16px; height: 16px; line-height: 14px; text-align: center; color: #e74c3c !important; background: #fff; }
+        .score-circle-blue { border: 1.5px solid #1e3799; border-radius: 50%; display: inline-block; width: 16px; height: 16px; line-height: 14px; text-align: center; color: #1e3799 !important; background: #fff; }
+        .cell-period-end-red { border-bottom: 2px solid #e74c3c !important; }
+        .cell-period-end-blue { border-bottom: 2px solid #1e3799 !important; }
+        .scoresheet-summary { margin-top: 10px; display: flex; justify-content: center; }
+        .summary-table { width: 90%; border-collapse: collapse; font-weight: bold; border: 1px solid #2c3e50; background: #fff; font-size: 0.85em; }
+        .summary-table th, .summary-table td { border: 1px solid #2c3e50; padding: 4px; text-align: center; color: #2c3e50; }
+        .summary-table th { background-color: #f1f2f6; }
+
+        @media (max-width: 768px) {
+            .team-section { min-width: 100%; order: 2; }
+            .center-section { min-width: 100%; order: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>🏀 GAME STATS TRACKER PRO iPad</h1>
+
+    <!-- タブメニュー -->
+    <div class="tabs">
+        <button id="btn-input-tab" class="tab-btn active" onclick="switchTab('input-tab')">📝 試合入力</button>
+        <button id="btn-player-tab" class="tab-btn" onclick="switchTab('player-tab')">👥 選手登録・編集</button>
+        <button id="btn-stats-tab" class="tab-btn" onclick="switchTab('stats-tab')">📊 集計データ</button>
+        <button id="btn-timeline-tab" class="tab-btn" onclick="switchTab('timeline-tab')">📋 公式スコア & 履歴</button>
+    </div>
+
+    <!-- 確定ボタン -->
+    <div class="lock-bar">
+        <button id="lock-btn" class="btn" style="background-color: #27ae60; padding: 4px 15px; font-weight: bold;" onclick="toggleLock()">
+            🔓 チーム名・選手名を確定して試合を始める
+        </button>
+    </div>
+
+    <!-- トップスコアボード -->
+    <div class="top-panel">
+        <div class="score-box">
+            <input type="text" id="away-team-name" class="team-name-input" value="AWAY" onchange="updateTeamNames()">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin: 2px 0;">
+                <button class="score-adjust-btn" onclick="adjustScore('away', -1)">-1</button>
+                <div class="score" id="away-score">0</div>
+                <button class="score-adjust-btn" onclick="adjustScore('away', 1)">+1</button>
+            </div>
+            <button class="team-undo-btn" id="away-undo-btn" onclick="undoTeamLastAction('away')">↩️ AWAY戻す</button>
+            <div class="timeout-container">
+                <span id="away-timeouts-dots" class="timeout-dots">●●●</span>
+                <button class="timeout-btn" onclick="useTimeout('away')">請求</button>
+            </div>
+            <div id="away-timeout-history" class="timeout-history"></div>
+            <div class="team-status"><span id="away-foul-area">チームF: <span id="away-team-fouls">0</span>/5</span></div>
+        </div>
+
+        <div class="timer-section">
+            <div class="timer-display" id="timer-display">10:00</div>
+            <div>
+                <button class="btn btn-start" onclick="startTimer()">▶</button>
+                <button class="btn btn-stop" onclick="pauseTimer()">⏸</button>
+                <button class="btn" onclick="resetTimer()">リセット</button>
+            </div>
+            <div>
+                <span id="period-display" style="font-weight:bold; font-size:0.95em;">Q1</span>
+                <button class="btn" style="background-color: #0f3460;" onclick="advancePeriod()">次Q/OT</button>
+                <button class="btn" style="background-color: #e67e22;" onclick="regressPeriod()">↩️ Q戻す</button>
+            </div>
+        </div>
+
+        <div class="score-box">
+            <input type="text" id="home-team-name" class="team-name-input" value="HOME" onchange="saveHomeTeamInfo()">
+            <div style="display: flex; justify-content: center; align-items: center; gap: 8px; margin: 2px 0;">
+                <button class="score-adjust-btn" onclick="adjustScore('home', -1)">-1</button>
+                <div class="score" id="home-score">0</div>
+                <button class="score-adjust-btn" onclick="adjustScore('home', 1)">+1</button>
+            </div>
+            <button class="team-undo-btn" id="home-undo-btn" onclick="undoTeamLastAction('home')">↩️ HOME戻す</button>
+            <div class="timeout-container">
+                <span id="home-timeouts-dots" class="timeout-dots">●●●</span>
+                <button class="timeout-btn" onclick="useTimeout('home')">請求</button>
+            </div>
+            <div id="home-timeout-history" class="timeout-history"></div>
+            <div class="team-status"><span id="home-foul-area">チームF: <span id="home-team-fouls">0</span>/5</span></div>
+        </div>
+    </div>
+
+    <!-- タブ1：試合入力画面 -->
+    <div id="input-tab" class="tab-content active">
+        <div class="main-container">
+            <!-- 左：AWAY -->
+            <div class="team-section">
+                <h2>
+                    <span id="away-section-title">AWAY</span>
+                    <div>
+                        <button class="btn" style="font-size:0.75em; padding:3px 6px; background:#2980b9;" onclick="openPresetModal('away')">📁 チーム呼出</button>
+                        <button class="btn" style="font-size:0.75em; padding:3px 6px; background:#27ae60;" onclick="saveCurrentAsPreset('away')">💾 保存</button>
+                    </div>
+                </h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th width="20%">#</th><th width="50%">選手名</th><th>PTS</th><th>F</th></tr></thead>
+                        <tbody id="away-player-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 中央：コート・ボタン・ログ -->
+            <div class="center-section">
+                <div class="court-container">
+                    <svg class="svg-court" id="court-svg" viewBox="0 0 300 160" onclick="handleCourtClick(event)">
+                        <text id="court-left-label" x="15" y="20" fill="rgba(255,255,255,0.55)" font-size="9" font-weight="bold">← AWAY 攻め</text>
+                        <text id="court-right-label" x="220" y="20" fill="rgba(255,255,255,0.55)" font-size="9" font-weight="bold">HOME 攻め →</text>
+                        <line x1="150" y1="0" x2="150" y2="160" stroke="white" stroke-width="1.5"/>
+                        <circle cx="150" cy="80" r="20" fill="none" stroke="white" stroke-width="1.5"/>
+                        <rect x="0" y="52.5" width="58" height="55" fill="#c49b6b" stroke="white" stroke-width="1"/>
+                        <path d="M 58 52.5 A 27.5 27.5 0 0 1 58 107.5" fill="none" stroke="white" stroke-width="1"/>
+                        <path d="M 0 10 L 30 10 A 70 70 0 0 1 30 150 L 0 150" fill="none" stroke="white" stroke-width="1"/>
+                        <circle cx="18" cy="80" r="3" fill="none" stroke="#e74c3c" stroke-width="1.5"/>
+                        <rect x="242" y="52.5" width="58" height="55" fill="#c49b6b" stroke="white" stroke-width="1"/>
+                        <path d="M 242 107.5 A 27.5 27.5 0 0 1 242 52.5" fill="none" stroke="white" stroke-width="1"/>
+                        <path d="M 300 10 L 270 10 A 70 70 0 0 0 270 150 L 300 150" fill="none" stroke="white" stroke-width="1"/>
+                        <circle cx="282" cy="80" r="3" fill="none" stroke="#e74c3c" stroke-width="1.5"/>
+                        <g id="shot-layer"></g>
+                        <circle id="pending-shot" cx="-10" cy="-10" r="4" fill="yellow" stroke="black" stroke-width="1" display="none"></circle>
+                    </svg>
+                </div>
+
+                <div class="action-panel">
+                    <div class="action-title" id="selected-player-name">【選手を選択してください】</div>
+                    <div class="btn-grid">
+                        <button class="action-btn pts-make" onclick="recordAction('fg2', 'make')">2P 成功</button>
+                        <button class="action-btn pts-make" onclick="recordAction('fg3', 'make')">3P 成功</button>
+                        <button class="action-btn pts-make" onclick="recordAction('ft', 'make')">FT 成功</button>
+                        <button class="action-btn reb" onclick="recordAction('reb', 1)">REB</button>
+                        <button class="action-btn pts-miss" onclick="recordAction('fg2', 'miss')">2P 失敗</button>
+                        <button class="action-btn pts-miss" onclick="recordAction('fg3', 'miss')">3P 失敗</button>
+                        <button class="action-btn pts-miss" onclick="recordAction('ft', 'miss')">FT 失敗</button>
+                        <button class="action-btn ast" onclick="recordAction('ast', 1)">AST</button>
+                        <button class="action-btn to" onclick="recordAction('to', 1)">TO</button>
+                        <button class="action-btn cut" onclick="recordAction('st', 1)">ST</button>
+                        <button class="action-btn scr" onclick="recordAction('scr', 1)">SCR</button>
+                        <button class="action-btn" style="background-color: #7f8c8d;" onclick="clearSelectedPlayer()">解除</button>
+                        <button class="action-btn fls-p1" style="background-color: #e74c3c;" onclick="recordAction('fls_p', 1)">P</button>
+                        <button class="action-btn fls-p1" onclick="recordAction('fls_p1', 1)">P1</button>
+                        <button class="action-btn fls-p2" onclick="recordAction('fls_p2', 1)">P2</button>
+                        <button class="action-btn fls-p3" onclick="recordAction('fls_p3', 1)">P3</button>
+                        <button class="action-btn fls-t" onclick="recordAction('fls_t', 1)">T</button>
+                        <button class="action-btn fls-u" onclick="recordAction('fls_u', 1)">U</button>
+                        <button class="action-btn" style="background-color: #c0392b; grid-column: span 2;" onclick="undoLastAction()">↩️ 直前プレイ戻す (Undo)</button>
+                    </div>
+                </div>
+
+                <div class="log-panel" id="log-panel-container">
+                    <div id="log-list"></div>
+                </div>
+            </div>
+
+            <!-- 右：HOME -->
+            <div class="team-section">
+                <h2>
+                    <span id="home-section-title">HOME</span>
+                    <div>
+                        <button class="btn" style="font-size:0.75em; padding:3px 6px; background:#2980b9;" onclick="openPresetModal('home')">📁 チーム呼出</button>
+                        <button class="btn" style="font-size:0.75em; padding:3px 6px; background:#27ae60;" onclick="saveCurrentAsPreset('home')">💾 保存</button>
+                    </div>
+                </h2>
+                <div class="table-wrapper">
+                    <table>
+                        <thead><tr><th width="20%">#</th><th width="50%">選手名</th><th>PTS</th><th>F</th></tr></thead>
+                        <tbody id="home-player-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- タブ2：選手登録・編集画面（新規追加） -->
+    <div id="player-tab" class="tab-content">
+        <div class="management-container">
+            <!-- HOMEチーム管理 -->
+            <div class="management-box">
+                <h3>
+                    <span id="mgmt-home-title">HOME 選手管理</span>
+                    <button class="add-player-btn" onclick="addNewPlayer('home')">＋ 選手を増やす</button>
+                </h3>
+                <div class="table-wrapper" style="max-height: 500px;">
+                    <table>
+                        <thead><tr><th width="22%">背番号</th><th width="58%">選手名</th><th width="20%">操作</th></tr></thead>
+                        <tbody id="mgmt-home-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- AWAYチーム管理 -->
+            <div class="management-box">
+                <h3>
+                    <span id="mgmt-away-title">AWAY 選手管理</span>
+                    <button class="add-player-btn" onclick="addNewPlayer('away')">＋ 選手を増やす</button>
+                </h3>
+                <div class="table-wrapper" style="max-height: 500px;">
+                    <table>
+                        <thead><tr><th width="22%">背番号</th><th width="58%">選手名</th><th width="20%">操作</th></tr></thead>
+                        <tbody id="mgmt-away-list"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- モーダル（プリセットチーム・選手選択） -->
+    <div id="preset-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">📁 チームと選手を選択</h3>
+                <button class="close-btn" onclick="closePresetModal()">✕</button>
+            </div>
+            <label style="font-size:0.85em; color:#a0aec0; margin-bottom:4px;">1. 保存済みチームを選択:</label>
+            <select id="preset-team-select" class="preset-select" onchange="onPresetTeamChange()"></select>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                <label style="font-size:0.85em; color:#a0aec0;">2. 試合に出場する選手にチェック:</label>
+                <div>
+                    <button class="btn" style="font-size:0.7em; padding:2px 6px;" onclick="toggleAllPresetPlayers(true)">全選択</button>
+                    <button class="btn" style="font-size:0.7em; padding:2px 6px; background:#7f8c8d;" onclick="toggleAllPresetPlayers(false)">全解除</button>
+                </div>
+            </div>
+            <div id="preset-player-list" class="preset-player-list"></div>
+            
+            <div class="preset-actions">
+                <button class="btn" style="background:#c0392b; flex:0.4;" onclick="deleteSelectedPreset()">🗑️ チーム削除</button>
+                <button class="btn" style="background:#27ae60; flex:1; font-size:1em; font-weight:bold;" onclick="applyPresetToTeam()">✨ 選択した選手をセット</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- タブ3：集計データ -->
+    <div id="stats-tab" class="tab-content">
+        <div style="overflow: hidden; margin-top: 5px;">
+            <h3 id="home-stats-header" style="display: inline-block; color: #f39c12; margin: 5px 0;">HOME STATS</h3>
+            <button id="btn-copy-home" class="excel-copy-btn" onclick="copyToClipboard('home')">📋 スプレッドシート用にコピー</button>
+        </div>
+        <div class="stats-table-wrapper">
+            <table class="stats-table">
+                <thead><tr><th>#</th><th>選手名</th><th>PTS</th><th>2P</th><th>3P</th><th>FT</th><th>REB</th><th>AST</th><th>TO</th><th>ST</th><th>SCR</th><th>F</th></tr></thead>
+                <tbody id="home-stats-body"></tbody>
+            </table>
+        </div>
+
+        <div style="overflow: hidden; margin-top: 15px;">
+            <h3 id="away-stats-header" style="display: inline-block; color: #f39c12; margin: 5px 0;">AWAY STATS</h3>
+            <button id="btn-copy-away" class="excel-copy-btn" onclick="copyToClipboard('away')">📋 スプレッドシート用にコピー</button>
+        </div>
+        <div class="stats-table-wrapper">
+            <table class="stats-table">
+                <thead><tr><th>#</th><th>選手名</th><th>PTS</th><th>2P</th><th>3P</th><th>FT</th><th>REB</th><th>AST</th><th>TO</th><th>ST</th><th>SCR</th><th>F</th></tr></thead>
+                <tbody id="away-stats-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- タブ4：タイムライン＆公式紙スコア -->
+    <div id="timeline-tab" class="tab-content">
+        <div class="scoresheet-container">
+            <div class="scoresheet-title">
+                <span>📋 JBA公式風ランニング・スコア</span>
+                <span style="font-size: 0.7em; font-weight: normal; color: #555;">1・3Q=赤 / 2·4Q·OT=青</span>
+            </div>
+            <div class="scoresheet-columns" id="scoresheet-columns-container"></div>
+            <div class="scoresheet-summary">
+                <table class="summary-table">
+                    <thead><tr><th>チーム</th><th>1Q</th><th>2Q</th><th>3Q</th><th>4Q</th><th>OT</th><th>TOTAL</th></tr></thead>
+                    <tbody>
+                        <tr><td id="summary-home-title" style="color:#3498db; text-align:left;">HOME</td><td id="summary-h1">-</td><td id="summary-h2">-</td><td id="summary-h3">-</td><td id="summary-h4">-</td><td id="summary-hot">-</td><td id="summary-htotal">0</td></tr>
+                        <tr><td id="summary-away-title" style="color:#e74c3c; text-align:left;">AWAY</td><td id="summary-a1">-</td><td id="summary-a2">-</td><td id="summary-a3">-</td><td id="summary-a4">-</td><td id="summary-aot">-</td><td id="summary-atotal">0</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <h3 style="color: #f39c12; margin: 10px 0 5px 0;">📜 詳細プレイ履歴</h3>
+        <div class="stats-table-wrapper">
+            <table class="stats-table" style="text-align: left;">
+                <thead><tr><th width="20%">⏰ 時間</th><th width="15%">👥 チーム</th><th width="25%">👤 選手</th><th width="25%">🏀 プレイ内容</th><th width="15%">📊 スコア</th></tr></thead>
+                <tbody id="timeline-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 画像でいただいた鈴木昊來選手らの初期デフォルトメンバー
+        const defaultHomeMembers = [
+            { num: 4, name: "鈴木 昊來" }, { num: 5, name: "大塚 椋" },
+            { num: 6, name: "加藤 雅也" }, { num: 7, name: "池田 一喜" },
+            { num: 8, name: "田口 碧人" }, { num: 9, name: "内堀 友翔" },
+            { num: 10, name: "中村 絆人" }, { num: 11, name: "村尾 哲志" },
+            { num: 12, name: "寺田 智輝" }, { num: 13, name: "川島 昊" },
+            { num: 14, name: "石川 遥士" }, { num: 15, name: "猪俣 樹" },
+            { num: 16, name: "鈴木 楓人" }
+        ];
+
+        let teamScore = { home: 0, away: 0 };
+        let teamFouls = { home: 0, away: 0 };
+        let teamTimeouts = { home: 3, away: 3 };
+        let timeoutsHistory = { home: [], away: [] };
+        let currentPeriod = 1;
+        let isLocked = false;
+        let selectedPlayer = null; 
+        let pendingShotPos = null; 
+        let gameLogs = [];
+        let actionHistory = [];
+        let currentModalTargetTeam = null; 
+
+        function getHomeName() {
+            const el = document.getElementById('home-team-name');
+            return (el && el.value.trim()) ? el.value.trim() : 'HOME';
+        }
+        function getAwayName() {
+            const el = document.getElementById('away-team-name');
+            return (el && el.value.trim()) ? el.value.trim() : 'AWAY';
+        }
+
+        function createPlayerObject(uid, num, name) {
+            return {
+                uid: uid, num: num, name: name, pts: 0,
+                fg2m: 0, fg2a: 0, fg3m: 0, fg3a: 0, ftm: 0, fta: 0,
+                reb: 0, ast: 0, to: 0, st: 0, scr: 0,
+                fls_p: 0, fls_p1: 0, fls_p2: 0, fls_p3: 0, fls_t: 0, fls_u: 0, fls: 0
+            };
+        }
+
+        // 初期ロースター生成（HOMEは鈴木選手らを最初から入れる）
+        let homePlayers = defaultHomeMembers.map((m, idx) => createPlayerObject(idx + 1, m.num, m.name));
+        let awayPlayers = [];
+        for(let i=1; i<=15; i++) {
+            awayPlayers.push(createPlayerObject(i, i+3, `Player ${i+3}`));
+        }
+
+        // --- 選手登録・追加・削除機能 ---
+        function addNewPlayer(teamStr) {
+            const players = teamStr === 'home' ? homePlayers : awayPlayers;
+            const maxUid = players.length > 0 ? Math.max(...players.map(p => p.uid)) : 0;
+            const newUid = maxUid + 1;
+            
+            // 最後の選手の背番号に1を足した番号を自動設定（数値でなければ空欄）
+            const lastNum = players.length > 0 ? parseInt(players[players.length - 1].num) : 0;
+            const newNum = (!isNaN(lastNum) && lastNum > 0) ? (lastNum + 1).toString() : "";
+            
+            const newPlayer = createPlayerObject(newUid, newNum, `新選手 ${newNum || newUid}`);
+            players.push(newPlayer);
+            
+            if (teamStr === 'home') saveHomeTeamInfo();
+            
+            // 全画面を更新
+            renderList(`${teamStr}-player-list`, players, teamStr);
+            renderManagementTables();
+            if (document.getElementById('stats-tab').classList.contains('active')) updateStatsTable();
+        }
+
+        function deletePlayer(teamStr, uid) {
+            let players = teamStr === 'home' ? homePlayers : awayPlayers;
+            const player = players.find(p => p.uid === uid);
+            if (!player) return;
+            if (!confirm(`「#${player.num} ${player.name}」を選手リストから削除しますか？\n※この選手の記録済みスタッツも消去されます。`)) return;
+
+            if (teamStr === 'home') {
+                homePlayers = homePlayers.filter(p => p.uid !== uid);
+                saveHomeTeamInfo();
+                renderList('home-player-list', homePlayers, 'home');
+            } else {
+                awayPlayers = awayPlayers.filter(p => p.uid !== uid);
+                renderList('away-player-list', awayPlayers, 'away');
+            }
+
+            if (selectedPlayer && selectedPlayer.team === teamStr && selectedPlayer.uid === uid) {
+                clearSelectedPlayer();
+            }
+
+            renderManagementTables();
+            if (document.getElementById('stats-tab').classList.contains('active')) updateStatsTable();
+        }
+
+        function renderManagementTables() {
+            const renderMgmt = (tbodyId, players, teamStr) => {
+                const tbody = document.getElementById(tbodyId);
+                tbody.innerHTML = '';
+                players.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td><input type="text" value="${p.num}" onchange="updateInfo('${teamStr}', ${p.uid}, 'num', this.value)"></td>
+                        <td><input type="text" class="input-name" style="width:90%;" value="${p.name}" onchange="updateInfo('${teamStr}', ${p.uid}, 'name', this.value)"></td>
+                        <td><button class="delete-player-btn" onclick="deletePlayer('${teamStr}', ${p.uid})">🗑️ 削除</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            };
+            renderMgmt('mgmt-home-list', homePlayers, 'home');
+            renderMgmt('mgmt-away-list', awayPlayers, 'away');
+            
+            document.getElementById('mgmt-home-title').innerText = `${getHomeName()} 選手管理`;
+            document.getElementById('mgmt-away-title').innerText = `${getAwayName()} 選手管理`;
+        }
+
+        // --- プリセット機能 (LocalStorage) ---
+        function getSavedPresets() {
+            const saved = localStorage.getItem('bb_team_presets');
+            if (saved) {
+                try { return JSON.parse(saved); } catch (e) { console.error(e); }
+            }
+            return [{
+                id: 'default_home',
+                name: 'HOMEデフォルト (鈴木昊來チーム)',
+                players: defaultHomeMembers
+            }];
+        }
+
+        function savePresetsToStorage(presets) {
+            localStorage.setItem('bb_team_presets', JSON.stringify(presets));
+        }
+
+        function saveCurrentAsPreset(teamStr) {
+            const teamName = teamStr === 'home' ? getHomeName() : getAwayName();
+            const players = teamStr === 'home' ? homePlayers : awayPlayers;
+            
+            const presetName = prompt(`このチームをプリセット保存します。\nチーム名を入力してください:`, teamName);
+            if (!presetName) return;
+
+            const presets = getSavedPresets();
+            const newPreset = {
+                id: 'preset_' + Date.now(),
+                name: presetName.trim(),
+                players: players.map(p => ({ num: p.num, name: p.name }))
+            };
+
+            presets.push(newPreset);
+            savePresetsToStorage(presets);
+            alert(`💾 「${newPreset.name}」をプリセットに保存しました！\n次回から [📁 チーム呼出] で選択できます。`);
+        }
+
+        function openPresetModal(teamStr) {
+            currentModalTargetTeam = teamStr;
+            const targetName = teamStr === 'home' ? getHomeName() : getAwayName();
+            document.getElementById('modal-title').innerText = `📁 【${targetName}】チームと選手を選択`;
+            
+            const presets = getSavedPresets();
+            const selectEl = document.getElementById('preset-team-select');
+            selectEl.innerHTML = '';
+            
+            if (presets.length === 0) {
+                selectEl.innerHTML = '<option value="">保存済みチームがありません</option>';
+            } else {
+                presets.forEach(p => {
+                    const opt = document.createElement('option');
+                    opt.value = p.id;
+                    opt.textContent = p.name;
+                    selectEl.appendChild(opt);
+                });
+            }
+
+            onPresetTeamChange();
+            document.getElementById('preset-modal').style.display = 'flex';
+        }
+
+        function closePresetModal() {
+            document.getElementById('preset-modal').style.display = 'none';
+            currentModalTargetTeam = null;
+        }
+
+        function onPresetTeamChange() {
+            const selectEl = document.getElementById('preset-team-select');
+            const selectedId = selectEl.value;
+            const listEl = document.getElementById('preset-player-list');
+            listEl.innerHTML = '';
+
+            const presets = getSavedPresets();
+            const preset = presets.find(p => p.id === selectedId);
+            if (!preset) return;
+
+            preset.players.forEach((p, idx) => {
+                const item = document.createElement('label');
+                item.className = 'preset-player-item';
+                item.innerHTML = `
+                    <input type="checkbox" class="preset-checkbox" value="${idx}" checked>
+                    <span style="font-weight:bold; width:35px;">#${p.num}</span>
+                    <span>${p.name}</span>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function toggleAllPresetPlayers(checked) {
+            document.querySelectorAll('.preset-checkbox').forEach(cb => cb.checked = checked);
+        }
+
+        function deleteSelectedPreset() {
+            const selectEl = document.getElementById('preset-team-select');
+            const selectedId = selectEl.value;
+            if (!selectedId) return;
+
+            let presets = getSavedPresets();
+            const preset = presets.find(p => p.id === selectedId);
+            if (!confirm(`プリセットチーム「${preset.name}」を削除してもよろしいですか？`)) return;
+
+            presets = presets.filter(p => p.id !== selectedId);
+            savePresetsToStorage(presets);
+            
+            openPresetModal(currentModalTargetTeam);
+        }
+
+        function applyPresetToTeam() {
+            const selectEl = document.getElementById('preset-team-select');
+            const selectedId = selectEl.value;
+            const presets = getSavedPresets();
+            const preset = presets.find(p => p.id === selectedId);
+            if (!preset) return;
+
+            const checkedBoxes = document.querySelectorAll('.preset-checkbox:checked');
+            if (checkedBoxes.length === 0) {
+                alert('少なくとも1人の選手を選択してください。');
+                return;
+            }
+
+            const selectedPlayers = [];
+            checkedBoxes.forEach(cb => {
+                const idx = parseInt(cb.value);
+                selectedPlayers.push(preset.players[idx]);
+            });
+
+            if (currentModalTargetTeam === 'home') {
+                document.getElementById('home-team-name').value = preset.name;
+                homePlayers = selectedPlayers.map((m, idx) => createPlayerObject(idx + 1, m.num, m.name));
+                renderList('home-player-list', homePlayers, 'home');
+                saveHomeTeamInfo();
+            } else {
+                document.getElementById('away-team-name').value = preset.name;
+                awayPlayers = selectedPlayers.map((m, idx) => createPlayerObject(idx + 1, m.num, m.name));
+                renderList('away-player-list', awayPlayers, 'away');
+            }
+
+            updateTeamNames();
+            renderManagementTables();
+            closePresetModal();
+            alert(`✨「${preset.name}」から ${selectedPlayers.length} 名をロースターにセットしました！`);
+        }
+
+        function saveHomeTeamInfo() {
+            const data = {
+                name: getHomeName(),
+                players: homePlayers.map(p => ({ num: p.num, name: p.name }))
+            };
+            localStorage.setItem('bb_stats_home_team', JSON.stringify(data));
+            updateTeamNames();
+        }
+
+        function loadHomeTeamInfo() {
+            const saved = localStorage.getItem('bb_stats_home_team');
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    if (data.name) document.getElementById('home-team-name').value = data.name;
+                    if (data.players && Array.isArray(data.players)) {
+                        homePlayers = data.players.map((sp, idx) => createPlayerObject(idx + 1, sp.num, sp.name));
+                    }
+                } catch (e) { console.error('ロースター読み込みエラー', e); }
+            }
+        }
+
+        function updateTeamNames() {
+            const hName = getHomeName();
+            const aName = getAwayName();
+            document.getElementById('home-section-title').innerText = hName;
+            document.getElementById('away-section-title').innerText = aName;
+            document.getElementById('home-stats-header').innerText = `${hName} STATS`;
+            document.getElementById('away-stats-header').innerText = `${aName} STATS`;
+            document.getElementById('home-undo-btn').innerText = `↩️ ${hName}戻す`;
+            document.getElementById('away-undo-btn').innerText = `↩️ ${aName}戻す`;
+            if (document.getElementById('mgmt-home-title')) {
+                document.getElementById('mgmt-home-title').innerText = `${hName} 選手管理`;
+                document.getElementById('mgmt-away-title').innerText = `${aName} 選手管理`;
+            }
+            updateCourtLabels();
+            if (document.getElementById('timeline-tab').classList.contains('active')) updateScoresheetSummary();
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            
+            if (tabId === 'input-tab') {
+                document.getElementById('btn-input-tab').classList.add('active');
+            } else if (tabId === 'player-tab') {
+                document.getElementById('btn-player-tab').classList.add('active');
+                renderManagementTables();
+            } else if (tabId === 'stats-tab') {
+                document.getElementById('btn-stats-tab').classList.add('active');
+                updateStatsTable();
+            } else if (tabId === 'timeline-tab') {
+                document.getElementById('btn-timeline-tab').classList.add('active');
+                updateTimelineTable();
+                renderRunningScoreSheet();
+            }
+        }
+
+        function toggleLock() {
+            isLocked = !isLocked;
+            const btn = document.getElementById('lock-btn');
+            const inputs = document.querySelectorAll('.player-row input, .team-name-input, #player-tab input');
+            if (isLocked) {
+                btn.innerText = '🔒 チーム名・選手名をロック解除する'; btn.style.backgroundColor = '#e74c3c';
+                inputs.forEach(input => { input.classList.add('locked-input'); input.setAttribute('readonly', 'true'); });
+            } else {
+                btn.innerText = '🔓 チーム名・選手名を確定して始める'; btn.style.backgroundColor = '#27ae60';
+                inputs.forEach(input => { input.classList.remove('locked-input'); input.removeAttribute('readonly'); });
+            }
+        }
+
+        function initTables() {
+            loadHomeTeamInfo();
+            renderList('home-player-list', homePlayers, 'home');
+            renderList('away-player-list', awayPlayers, 'away');
+            renderManagementTables();
+            updateTeamDisplay();
+            updateTeamNames();
+        }
+
+        function renderList(tbodyId, players, teamStr) {
+            const tbody = document.getElementById(tbodyId); 
+            if (!tbody) return;
+            tbody.innerHTML = '';
+            players.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = 'player-row'; tr.id = `row-${teamStr}-${p.uid}`;
+                tr.onclick = () => selectPlayer(teamStr, p.uid);
+                tr.innerHTML = `
+                    <td><input type="text" value="${p.num}" onchange="updateInfo('${teamStr}', ${p.uid}, 'num', this.value)" onclick="event.stopPropagation();"></td>
+                    <td><input type="text" class="input-name" value="${p.name}" onchange="updateInfo('${teamStr}', ${p.uid}, 'name', this.value)" onclick="event.stopPropagation();"></td>
+                    <td id="${teamStr}-pts-${p.uid}" style="font-weight:bold;">${p.pts}</td>
+                    <td id="${teamStr}-fls-${p.uid}">${p.fls}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function updateInfo(team, uid, field, value) {
+            const players = (team === 'home' ? homePlayers : awayPlayers);
+            const p = players.find(x => x.uid === uid);
+            if(p) {
+                p[field] = value;
+                if (selectedPlayer && selectedPlayer.team === team && selectedPlayer.uid === uid) {
+                    document.getElementById('selected-player-name').innerText = `選択中: #${p.num} ${p.name}`;
+                }
+            }
+            if (team === 'home') saveHomeTeamInfo();
+            
+            // 入力画面と選手管理画面の表示を互いに同期
+            if (document.getElementById('input-tab').classList.contains('active')) {
+                renderManagementTables();
+            } else if (document.getElementById('player-tab').classList.contains('active')) {
+                renderList(`${team}-player-list`, players, team);
+            }
+        }
+
+        function selectPlayer(teamStr, uid) {
+            document.querySelectorAll('.player-row').forEach(el => el.classList.remove('selected-home', 'selected-away'));
+            document.getElementById(`row-${teamStr}-${uid}`).classList.add(`selected-${teamStr}`);
+            selectedPlayer = { team: teamStr, uid: uid };
+            const p = (teamStr === 'home' ? homePlayers : awayPlayers).find(x => x.uid === uid);
+            document.getElementById('selected-player-name').innerText = `選択中: #${p.num} ${p.name}`;
+        }
+
+        function clearSelectedPlayer() {
+            document.querySelectorAll('.player-row').forEach(el => el.classList.remove('selected-home', 'selected-away'));
+            selectedPlayer = null;
+            document.getElementById('selected-player-name').innerText = '【選手を選択してください】';
+        }
+
+        function handleCourtClick(event) {
+            const svg = document.getElementById('court-svg');
+            const pt = svg.createSVGPoint(); pt.x = event.clientX; pt.y = event.clientY;
+            const cursorPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+            pendingShotPos = { x: cursorPt.x, y: cursorPt.y };
+            const pendingMarker = document.getElementById('pending-shot');
+            pendingMarker.setAttribute('cx', pendingShotPos.x); pendingMarker.setAttribute('cy', pendingShotPos.y);
+            pendingMarker.style.display = 'block';
+        }
+
+        function updateCourtLabels() {
+            const leftLabel = document.getElementById('court-left-label');
+            const rightLabel = document.getElementById('court-right-label');
+            if (!leftLabel || !rightLabel) return;
+            const hName = getHomeName(), aName = getAwayName();
+            if (currentPeriod >= 3) {
+                leftLabel.textContent = `← ${hName} 攻め`; rightLabel.textContent = `${aName} 攻め →`;
+            } else {
+                leftLabel.textContent = `← ${aName} 攻め`; rightLabel.textContent = `${hName} 攻め →`;
+            }
+        }
+
+        function recordAction(statType, detail) {
+            if (!selectedPlayer) return;
+            const teamPlayers = selectedPlayer.team === 'home' ? homePlayers : awayPlayers;
+            const player = teamPlayers.find(p => p.uid === selectedPlayer.uid);
+            const timeStr = getCurrentTimeFormatted();
+            const currentTeamName = selectedPlayer.team === 'home' ? getHomeName() : getAwayName();
+
+            let historyEntry = {
+                type: 'action', team: selectedPlayer.team, uid: player.uid, playerNum: player.num,
+                playerName: player.name, statType: statType, detail: detail, timeStr: timeStr,
+                period: currentPeriod, marker: null, scoreSnapshot: { home: 0, away: 0 }
+            };
+
+            if (statType === 'fg2' || statType === 'fg3' || statType === 'ft') {
+                const isMake = (detail === 'make');
+                let ptsValue = (statType === 'fg2') ? 2 : (statType === 'fg3') ? 3 : 1;
+                if (statType === 'fg2') { player.fg2a++; if (isMake) player.fg2m++; }
+                else if (statType === 'fg3') { player.fg3a++; if (isMake) player.fg3m++; }
+                else if (statType === 'ft') { player.fta++; if (isMake) player.ftm++; }
+
+                let markerEl = null;
+                if (statType === 'fg2' || statType === 'fg3') {
+                    if (!pendingShotPos) return;
+                    markerEl = drawShotMarker(pendingShotPos.x, pendingShotPos.y, selectedPlayer.team, player.num, player.name, timeStr, isMake, ptsValue);
+                    document.getElementById('pending-shot').style.display = 'none'; pendingShotPos = null;
+                } else if (statType === 'ft') {
+                    const isFlipped = (currentPeriod >= 3);
+                    const targetX = (selectedPlayer.team === 'home') ? (isFlipped ? 58 : 242) : (isFlipped ? 242 : 58);
+                    markerEl = drawShotMarker(targetX, 80, selectedPlayer.team, player.num, player.name, timeStr + " (FT)", isMake, 1);
+                }
+                historyEntry.marker = markerEl;
+
+                if (isMake) {
+                    player.pts += ptsValue; teamScore[selectedPlayer.team] += ptsValue;
+                    addLog(currentTeamName, `${player.name}：${ptsValue}P成功 [${teamScore.home}-${teamScore.away}]`);
+                } else {
+                    addLog(currentTeamName, `${player.name}：${ptsValue}P失敗`);
+                }
+            } 
+            else if (statType.startsWith('fls_')) {
+                player[statType] += detail; player.fls += detail; teamFouls[selectedPlayer.team] += detail;
+                const fNames = { fls_p: 'P', fls_p1: 'P1', fls_p2: 'P2', fls_p3: 'P3', fls_t: 'T', fls_u: 'U' };
+                addLog(currentTeamName, `${player.name}：ファウル (${fNames[statType] || 'P'})`);
+            } 
+            else {
+                player[statType] += detail;
+                const sNames = { reb: 'リバウンド', ast: 'アシスト', to: 'ターンオーバー', st: 'スティール', scr: 'スクリーン' };
+                addLog(currentTeamName, `${player.name}：${sNames[statType]}`);
+            }
+
+            historyEntry.scoreSnapshot = { home: teamScore.home, away: teamScore.away };
+            actionHistory.push(historyEntry);
+            updateTeamDisplay();
+            document.getElementById(`${selectedPlayer.team}-pts-${player.uid}`).innerText = player.pts;
+            document.getElementById(`${selectedPlayer.team}-fls-${player.uid}`).innerText = player.fls;
+            if (document.getElementById('stats-tab').classList.contains('active')) updateStatsTable();
+        }
+
+        function drawShotMarker(x, y, team, playerNum, playerName, timeStr, isMake, pts) {
+            const layer = document.getElementById('shot-layer');
+            const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            circle.setAttribute('cx', x); circle.setAttribute('cy', y); circle.setAttribute('r', 4);
+            const teamColor = team === 'home' ? '#3498db' : '#e74c3c';
+            if (isMake) { circle.setAttribute('fill', '#2ecc71'); circle.setAttribute('stroke', teamColor); circle.setAttribute('stroke-width', '1.5'); }
+            else { circle.setAttribute('fill', 'none'); circle.setAttribute('stroke', '#e74c3c'); circle.setAttribute('stroke-width', '2'); }
+            layer.appendChild(circle); return circle;
+        }
+
+        function updateTeamDisplay() {
+            document.getElementById('home-score').innerText = teamScore.home;
+            document.getElementById('away-score').innerText = teamScore.away;
+            document.getElementById('home-team-fouls').innerText = teamFouls.home;
+            document.getElementById('away-team-fouls').innerText = teamFouls.away;
+            document.getElementById('home-timeouts-dots').innerText = "●".repeat(teamTimeouts.home) + "○".repeat(3 - teamTimeouts.home);
+            document.getElementById('away-timeouts-dots').innerText = "●".repeat(teamTimeouts.away) + "○".repeat(3 - teamTimeouts.away);
+            document.getElementById('home-timeout-history').innerText = timeoutsHistory.home.length > 0 ? timeoutsHistory.home.join(', ') : '';
+            document.getElementById('away-timeout-history').innerText = timeoutsHistory.away.length > 0 ? timeoutsHistory.away.join(', ') : '';
+            document.getElementById('home-foul-area').className = teamFouls.home >= 5 ? 'foul-count bonus' : '';
+            document.getElementById('away-foul-area').className = teamFouls.away >= 5 ? 'foul-count bonus' : '';
+        }
+
+        function useTimeout(team) {
+            if (teamTimeouts[team] > 0) {
+                teamTimeouts[team]--; const timeStr = getCurrentTimeFormatted(); timeoutsHistory[team].push(timeStr);
+                actionHistory.push({ type: 'timeout', team: team, timeStr: timeStr, period: currentPeriod, scoreSnapshot: { home: teamScore.home, away: teamScore.away } });
+                updateTeamDisplay();
+                const tName = team === 'home' ? getHomeName() : getAwayName();
+                addLog(tName, `タイムアウト請求`);
+            }
+        }
+
+        function adjustScore(team, val) {
+            const prevScore = teamScore[team]; teamScore[team] += val; if (teamScore[team] < 0) teamScore[team] = 0;
+            actionHistory.push({ type: 'adjustment', team: team, val: teamScore[team] - prevScore, timeStr: getCurrentTimeFormatted(), period: currentPeriod, scoreSnapshot: { home: teamScore.home, away: teamScore.away } });
+            updateTeamDisplay();
+            if (document.getElementById('stats-tab').classList.contains('active')) updateStatsTable();
+        }
+
+        function undoTeamLastAction(team) {
+            if (actionHistory.length === 0) return;
+            let targetIndex = -1;
+            for (let i = actionHistory.length - 1; i >= 0; i--) { if (actionHistory[i].team === team) { targetIndex = i; break; } }
+            if (targetIndex === -1) return;
+            const [last] = actionHistory.splice(targetIndex, 1);
+            executeUndoCore(last);
+        }
+
+        function undoLastAction() {
+            if (actionHistory.length === 0) return;
+            const last = actionHistory.pop();
+            executeUndoCore(last);
+        }
+
+        function executeUndoCore(last) {
+            if (last.type === 'action') {
+                const teamPlayers = last.team === 'home' ? homePlayers : awayPlayers;
+                const player = teamPlayers.find(p => p.uid === last.uid);
+                if (last.statType === 'fg2' || last.statType === 'fg3' || last.statType === 'ft') {
+                    const isMake = (last.detail === 'make');
+                    let ptsValue = (last.statType === 'fg2') ? 2 : (last.statType === 'fg3') ? 3 : 1;
+                    if (last.statType === 'fg2') { player.fg2a--; if (isMake) player.fg2m--; }
+                    else if (last.statType === 'fg3') { player.fg3a--; if (isMake) player.fg3m--; }
+                    else if (last.statType === 'ft') { player.fta--; if (isMake) player.ftm--; }
+                    if (isMake) { player.pts -= ptsValue; teamScore[last.team] -= ptsValue; }
+                    if (last.marker && last.marker.parentNode) last.marker.parentNode.removeChild(last.marker);
+                } else if (last.statType.startsWith('fls_')) {
+                    player[last.statType] -= last.detail; player.fls -= last.detail; teamFouls[last.team] -= last.detail;
+                } else { player[last.statType] -= last.detail; }
+                if (gameLogs.length > 0) gameLogs.shift();
+                updateTeamDisplay();
+                document.getElementById(`${last.team}-pts-${player.uid}`).innerText = player.pts;
+                document.getElementById(`${last.team}-fls-${player.uid}`).innerText = player.fls;
+            } else if (last.type === 'timeout') {
+                teamTimeouts[last.team]++; timeoutsHistory[last.team].pop();
+                if (gameLogs.length > 0) gameLogs.shift();
+                updateTeamDisplay();
+            } else if (last.type === 'period') {
+                currentPeriod = last.prevPeriod; teamFouls.home = last.prevTeamFouls.home; teamFouls.away = last.prevTeamFouls.away;
+                const pd = document.getElementById('period-display'); pd.innerText = currentPeriod <= 4 ? `Q${currentPeriod}` : `OT${currentPeriod - 4}`;
+                if (gameLogs.length > 0) gameLogs.shift();
+                updateTeamDisplay(); resetTimer(); updateCourtLabels();
+            } else if (last.type === 'adjustment') {
+                teamScore[last.team] -= last.val;
+                if (gameLogs.length > 0) gameLogs.shift();
+                updateTeamDisplay();
+            }
+            refreshLogDisplay();
+        }
+
+        function addLog(sender, message) {
+            if (sender === "システム" && !message.includes("開始") && !message.includes("終了")) return;
+            const min = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+            const sec = (timeRemaining % 60).toString().padStart(2, '0');
+            const qStr = currentPeriod <= 4 ? `Q${currentPeriod}` : `OT${currentPeriod - 4}`;
+            const logHTML = `<div class="log-item"><span class="log-time">${qStr} ${min}:${sec}</span> <span><strong>[${sender}]</strong> ${message}</span></div>`;
+            gameLogs.unshift(logHTML); refreshLogDisplay();
+        }
+
+        function refreshLogDisplay() {
+            document.getElementById('log-list').innerHTML = gameLogs.join('');
+            document.getElementById('log-panel-container').scrollTop = 0;
+        }
+
+        function getCurrentTimeFormatted() {
+            const min = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+            const sec = (timeRemaining % 60).toString().padStart(2, '0');
+            return `Q${currentPeriod} ${min}:${sec}`;
+        }
+
+        function formatPercent(made, att) { return att === 0 ? "0/0" : `${made}/${att}`; }
+
+        function updateStatsTable() {
+            const renderStats = (tbodyId, players) => {
+                const tbody = document.getElementById(tbodyId); tbody.innerHTML = '';
+                players.forEach(p => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${p.num}</td><td>${p.name}</td><td style="color:#f1c40f;font-weight:bold;">${p.pts}</td><td>${formatPercent(p.fg2m, p.fg2a)}</td><td>${formatPercent(p.fg3m, p.fg3a)}</td><td>${formatPercent(p.ftm, p.fta)}</td><td>${p.reb}</td><td>${p.ast}</td><td>${p.to}</td><td>${p.st}</td><td>${p.scr}</td><td style="color:#e74c3c;">${p.fls}</td>`;
+                    tbody.appendChild(tr);
+                });
+            };
+            renderStats('home-stats-body', homePlayers); renderStats('away-stats-body', awayPlayers);
+        }
+
+        function copyToClipboard(team) {
+            const players = team === 'home' ? homePlayers : awayPlayers;
+            const teamName = team === 'home' ? getHomeName() : getAwayName();
+            const btn = document.getElementById(`btn-copy-${team}`);
+            
+            let text = `【${teamName}】\n背番号\t選手名\tPTS\t2P成功/試投\t3P成功/試投\tFT成功/試投\tREB\tAST\tTO\tST\tSCR\tFOUL\n`;
+            players.forEach(p => {
+                text += `${p.num}\t${p.name}\t${p.pts}\t${formatPercent(p.fg2m, p.fg2a)}\t${formatPercent(p.fg3m, p.fg3a)}\t${formatPercent(p.ftm, p.fta)}\t${p.reb}\t${p.ast}\t${p.to}\t${p.st}\t${p.scr}\t${p.fls}\n`;
+            });
+
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = btn.innerText; btn.innerText = "✅ コピー完了！"; btn.style.backgroundColor = "#2ecc71";
+                setTimeout(() => { btn.innerText = originalText; btn.style.backgroundColor = "#27ae60"; }, 2000);
+            });
+        }
+
+        function updateTimelineTable() {
+            const tbody = document.getElementById('timeline-body'); tbody.innerHTML = '';
+            const displayList = [...actionHistory].reverse();
+            if (displayList.length === 0) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#7f8c8d;padding:15px;">履歴なし</td></tr>`; return; }
+            displayList.forEach(item => {
+                const tr = document.createElement('tr');
+                let time = item.timeStr, team = "-", player = "-", playDetail = "", score = "-";
+                if (item.type === 'action') {
+                    team = item.team === 'home' ? getHomeName() : getAwayName(); player = `#${item.playerNum} ${item.playerName}`;
+                    if (item.statType === 'fg2' || item.statType === 'fg3' || item.statType === 'ft') playDetail = `${item.statType.toUpperCase()}${item.detail === 'make'?'成功':'失敗'}`;
+                    else if (item.statType.startsWith('fls_')) {
+                        const fNames = { fls_p: 'P', fls_p1: 'P1', fls_p2: 'P2', fls_p3: 'P3', fls_t: 'T', fls_u: 'U' };
+                        playDetail = `ファウル (${fNames[item.statType] || item.statType})`;
+                    } else playDetail = item.statType.toUpperCase();
+                    score = `${item.scoreSnapshot.home} - ${item.scoreSnapshot.away}`;
+                } else if (item.type === 'timeout') { team = (item.team === 'home' ? getHomeName() : getAwayName()); playDetail = "タイムアウト"; score = `${item.scoreSnapshot.home} - ${item.scoreSnapshot.away}`; }
+                else if (item.type === 'period') { time = `Q${item.prevPeriod} 終了`; playDetail = `第${item.prevPeriod}Q終了`; score = `${item.scoreSnapshot.home} - ${item.scoreSnapshot.away}`; }
+                else if (item.type === 'adjustment') { team = (item.team === 'home' ? getHomeName() : getAwayName()); playDetail = `手動修正(${item.val})`; score = `${item.scoreSnapshot.home} - ${item.scoreSnapshot.away}`; }
+                tr.innerHTML = `<td>${time}</td><td>${team}</td><td>${player}</td><td>${playDetail}</td><td>${score}</td>`;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function rebuildRunningScore() {
+            const maxElements = 160; const homeRunning = Array(maxElements).fill(null); const awayRunning = Array(maxElements).fill(null);
+            let hScore = 0, aScore = 0; const periodEnds = [];
+            actionHistory.forEach(item => {
+                if (item.type === 'action' && (item.statType === 'fg2' || item.statType === 'fg3' || item.statType === 'ft') && item.detail === 'make') {
+                    let pts = (item.statType === 'fg2') ? 2 : (item.statType === 'fg3') ? 3 : 1;
+                    const inkColor = (item.period === 1 || item.period === 3) ? 'red' : 'blue';
+                    if (item.team === 'home') { hScore += pts; homeRunning[hScore] = { playerNum: item.playerNum, statType: item.statType, color: inkColor, isPeriodEnd: false }; }
+                    else { aScore += pts; awayRunning[aScore] = { playerNum: item.playerNum, statType: item.statType, color: inkColor, isPeriodEnd: false }; }
+                } else if (item.type === 'period') { periodEnds.push({ period: item.prevPeriod, hScore: hScore, aScore: aScore }); }
+                else if (item.type === 'adjustment') { if (item.team === 'home') hScore += item.val; else aScore += item.val; }
+            });
+            periodEnds.forEach(pe => {
+                const inkColor = (pe.period === 1 || pe.period === 3) ? 'red' : 'blue';
+                if (pe.hScore > 0 && homeRunning[pe.hScore]) { homeRunning[pe.hScore].isPeriodEnd = true; homeRunning[pe.hScore].periodEndColor = inkColor; }
+                if (pe.aScore > 0 && awayRunning[pe.aScore]) { awayRunning[pe.aScore].isPeriodEnd = true; awayRunning[pe.aScore].periodEndColor = inkColor; }
+            });
+            return { homeRunning, awayRunning, maxScore: Math.max(90, hScore, aScore) };
+        }
+
+        function renderRunningScoreSheet() {
+            const { homeRunning, awayRunning, maxScore } = rebuildRunningScore();
+            const ptsPerCol = 30; const numCols = Math.max(3, Math.ceil(maxScore / ptsPerCol));
+            const container = document.getElementById('scoresheet-columns-container'); container.innerHTML = '';
+            
+            for (let c = 0; c < numCols; c++) {
+                const startPt = c * ptsPerCol + 1; const endPt = (c + 1) * ptsPerCol;
+                const colBand = document.createElement('div'); colBand.className = 'scoresheet-column-band';
+                let html = `<table class="scoresheet-table"><thead><tr><th>H</th><th colspan="2">得点</th><th>A</th></tr></thead><tbody>`;
+                for (let pt = startPt; pt <= endPt; pt++) {
+                    const h = homeRunning[pt], a = awayRunning[pt];
+                    let hCell = "", hScore = pt, hScrClass = "col-score", aCell = "", aScore = pt, aScrClass = "col-score";
+                    if (h) {
+                        hCell = h.statType === 'fg3' ? `<span class="player-circle-${h.color}">${h.playerNum}</span>` : `<span style="color:${h.color==='red'?'#e74c3c':'#1e3799'}">${h.playerNum}</span>`;
+                        hScrClass += h.statType === 'ft' ? ` score-dot-${h.color}` : ` score-slash-${h.color}`;
+                        if (h.isPeriodEnd) { hScore = `<span class="score-circle-${h.periodEndColor}">${pt}</span>`; html = html.replace(/<tr>$/, `<tr class="cell-period-end-${h.periodEndColor}">`); }
+                    }
+                    if (a) {
+                        aCell = a.statType === 'fg3' ? `<span class="player-circle-${a.color}">${a.playerNum}</span>` : `<span style="color:${a.color==='red'?'#e74c3c':'#1e3799'}">${a.playerNum}</span>`;
+                        aScrClass += a.statType === 'ft' ? ` score-dot-${a.color}` : ` score-slash-${a.color}`;
+                        if (a.isPeriodEnd) { aScore = `<span class="score-circle-${a.periodEndColor}">${pt}</span>`; html = html.replace(/<tr>$/, `<tr class="cell-period-end-${a.periodEndColor}">`); }
+                    }
+                    html += `<tr><td class="col-pno">${hCell}</td><td class="${hScrClass}">${hScore}</td><td class="${aScrClass}">${aScore}</td><td class="col-pno">${aCell}</td></tr>`;
+                }
+                html += `</tbody></table>`; colBand.innerHTML = html; container.appendChild(colBand);
+            }
+            updateScoresheetSummary();
+        }
+
+        function updateScoresheetSummary() {
+            let qScores = { 1: {h:0,a:0}, 2: {h:0,a:0}, 3: {h:0,a:0}, 4: {h:0,a:0}, ot: {h:0,a:0} };
+            let prevH = 0, prevA = 0;
+            actionHistory.forEach(item => {
+                if (item.type === 'period') {
+                    const q = item.prevPeriod; const hVal = item.scoreSnapshot.home - prevH; const aVal = item.scoreSnapshot.away - prevA;
+                    if (q <= 4) qScores[q] = { h: hVal, a: aVal }; else { qScores.ot.h += hVal; qScores.ot.a += aVal; }
+                    prevH = item.scoreSnapshot.home; prevA = item.scoreSnapshot.away;
+                }
+            });
+            let sH = 0, sA = 0; for(let i=1; i<=4; i++) { sH += qScores[i].h; sA += qScores[i].a; } sH += qScores.ot.h; sA += qScores.ot.a;
+            const actH = teamScore.home - sH, actA = teamScore.away - sA;
+            if (currentPeriod <= 4) qScores[currentPeriod] = { h: actH, a: actA }; else { qScores.ot.h += actH; qScores.ot.a += actA; }
+
+            document.getElementById('summary-home-title').innerText = getHomeName();
+            document.getElementById('summary-away-title').innerText = getAwayName();
+
+            for(let i=1; i<=4; i++) {
+                document.getElementById(`summary-h${i}`).innerText = qScores[i].h || (currentPeriod > i ? '0' : '-');
+                document.getElementById(`summary-a${i}`).innerText = qScores[i].a || (currentPeriod > i ? '0' : '-');
+            }
+            document.getElementById('summary-hot').innerText = qScores.ot.h || (currentPeriod > 4 ? '0' : '-');
+            document.getElementById('summary-aot').innerText = qScores.ot.a || (currentPeriod > 4 ? '0' : '-');
+            document.getElementById('summary-htotal').innerText = teamScore.home;
+            document.getElementById('summary-atotal').innerText = teamScore.away;
+        }
+
+        let timerInterval = null; let timeRemaining = 600;
+        function updateTimerDisplay() {
+            const min = Math.floor(timeRemaining / 60).toString().padStart(2, '0');
+            const sec = (timeRemaining % 60).toString().padStart(2, '0');
+            document.getElementById('timer-display').innerText = `${min}:${sec}`;
+        }
+        function startTimer() { if (timerInterval) return; timerInterval = setInterval(() => { if (timeRemaining > 0) { timeRemaining--; updateTimerDisplay(); } else { pauseTimer(); addLog("システム", "🔔 ピリオド終了"); } }, 1000); }
+        function pauseTimer() { clearInterval(timerInterval); timerInterval = null; }
+        function resetTimer() { pauseTimer(); timeRemaining = 600; updateTimerDisplay(); }
+        
+        function advancePeriod() {
+            addLog("システム", `⏹️ 第 Q${currentPeriod} 終了 [${teamScore.home}-${teamScore.away}]`);
+            actionHistory.push({ type: 'period', prevPeriod: currentPeriod, prevTeamFouls: { home: teamFouls.home, away: teamFouls.away }, timeStr: `Q${currentPeriod} 終了`, scoreSnapshot: { home: teamScore.home, away: teamScore.away } });
+            currentPeriod++; const pd = document.getElementById('period-display'); pd.innerText = currentPeriod <= 4 ? `Q${currentPeriod}` : `OT${currentPeriod - 4}`;
+            teamFouls.home = 0; teamFouls.away = 0; updateTeamDisplay(); resetTimer(); updateCourtLabels();
+            addLog("システム", `▶️ 第 ${pd.innerText} 開始`);
+        }
+
+        function regressPeriod() {
+            if (currentPeriod <= 1) return;
+            let foundIndex = -1;
+            for (let i = actionHistory.length - 1; i >= 0; i--) {
+                if (actionHistory[i].type === 'period' && actionHistory[i].prevPeriod === currentPeriod - 1) { foundIndex = i; break; }
+            }
+            if (foundIndex !== -1) {
+                const lastPeriodAction = actionHistory[foundIndex];
+                currentPeriod = lastPeriodAction.prevPeriod;
+                teamFouls.home = lastPeriodAction.prevTeamFouls.home; teamFouls.away = lastPeriodAction.prevTeamFouls.away;
+                actionHistory.splice(foundIndex, 1);
+            } else { currentPeriod--; teamFouls.home = 0; teamFouls.away = 0; }
+            const pd = document.getElementById('period-display'); pd.innerText = currentPeriod <= 4 ? `Q${currentPeriod}` : `OT${currentPeriod - 4}`;
+            if (gameLogs.length > 0) gameLogs.shift();
+            updateTeamDisplay(); resetTimer(); updateCourtLabels();
+            addLog("システム", `🔔 第 ${pd.innerText} に戻しました`);
+        }
+
+        initTables(); updateTimerDisplay();
+        addLog("システム", "▶️ 第 Q1 開始");
+    </script>
+</body>
+</html>
